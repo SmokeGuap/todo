@@ -82,6 +82,11 @@ func (t *TodoList) Print() {
 	}
 }
 
+func waitForEnter(s *bufio.Scanner) {
+	fmt.Print("\nPress Enter to continue...")
+	s.Scan()
+}
+
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 
@@ -107,6 +112,7 @@ func main() {
 	}
 
 	for {
+		fmt.Print("\033[H\033[2J")
 		fmt.Println("───────────────────────────────────────")
 		fmt.Println("Menu:")
 		fmt.Println("1. List all tasks")
@@ -129,6 +135,8 @@ func main() {
 		switch choice {
 		case "1":
 			todos.Print()
+			waitForEnter(scanner)
+
 		case "2":
 			fmt.Print("Write title: ")
 			if !scanner.Scan() {
@@ -138,6 +146,7 @@ func main() {
 
 			if title == "" {
 				fmt.Println("Error: task title cannot be empty")
+				waitForEnter(scanner)
 				continue
 			}
 
@@ -147,9 +156,12 @@ func main() {
 			} else {
 				fmt.Println("Task added successfully")
 			}
+			waitForEnter(scanner)
+
 		case "3":
 			if len(*todos) == 0 {
 				fmt.Println("Your todo list is empty")
+				waitForEnter(scanner)
 				continue
 			}
 			todos.Print()
@@ -163,11 +175,13 @@ func main() {
 			num, err := strconv.Atoi(id)
 			if err != nil {
 				fmt.Println("Error: please enter a valid number")
+				waitForEnter(scanner)
 				continue
 			}
 			err = todos.Complete(num - 1)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
+				waitForEnter(scanner)
 				continue
 			}
 			if err := todos.Save(dataFile); err != nil {
@@ -175,9 +189,12 @@ func main() {
 			} else {
 				fmt.Println("Task marked as completed")
 			}
+			waitForEnter(scanner)
+
 		case "4":
 			if len(*todos) == 0 {
 				fmt.Println("Your todo list is empty")
+				waitForEnter(scanner)
 				continue
 			}
 			todos.Print()
@@ -191,11 +208,13 @@ func main() {
 			num, err := strconv.Atoi(id)
 			if err != nil {
 				fmt.Println("Error: please enter a valid number")
+				waitForEnter(scanner)
 				continue
 			}
 			err = todos.Delete(num - 1)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
+				waitForEnter(scanner)
 				continue
 			}
 			if err := todos.Save(dataFile); err != nil {
@@ -203,11 +222,15 @@ func main() {
 			} else {
 				fmt.Println("Task deleted successfully")
 			}
+			waitForEnter(scanner)
+
 		case "5":
 			fmt.Println("Goodbye!")
 			return
 		default:
 			fmt.Println("Unknown command. Please choose a number from 1 to 5.")
+			waitForEnter(scanner)
 		}
+
 	}
 }
