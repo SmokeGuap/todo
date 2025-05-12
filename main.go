@@ -78,7 +78,7 @@ func (t *TodoList) Print() {
 		if task.Done {
 			status = "[\u2713]"
 		}
-		fmt.Printf("%d. %s %s\n", i+1, status, task.Title)
+		fmt.Printf("%d. %s %s (created: %v)\n", i+1, status, task.Title, task.CreatedAt.Format("2006.01.02 15:04"))
 	}
 }
 
