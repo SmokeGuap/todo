@@ -29,21 +29,19 @@ func (t *TodoList) Add(title string) {
 	*t = append(*t, task)
 }
 
-func (t *TodoList) Complete(index int) error {
-	ls := *t
-	if index < 0 || index >= len(ls) {
+func (t *TodoList) SetDone(index int, b bool) error {
+	if index < 0 || index >= len(*t) {
 		return errors.New("invalid task index")
 	}
-	ls[index].Done = true
+	(*t)[index].Done = b
 	return nil
 }
 
 func (t *TodoList) Delete(index int) error {
-	ls := *t
-	if index < 0 || index >= len(ls) {
+	if index < 0 || index >= len(*t) {
 		return errors.New("invalid task index")
 	}
-	*t = append(ls[:index], ls[index+1:]...)
+	*t = append((*t)[:index], (*t)[index+1:]...)
 	return nil
 }
 
@@ -118,8 +116,9 @@ func main() {
 		fmt.Println("1. List all tasks")
 		fmt.Println("2. Add a new task")
 		fmt.Println("3. Mark task as completed")
-		fmt.Println("4. Delete a task")
-		fmt.Println("5. Exit")
+		fmt.Println("4. Mark task as uncompleted")
+		fmt.Println("5. Delete a task")
+		fmt.Println("6. Exit")
 		fmt.Println("───────────────────────────────────────")
 
 		fmt.Print("Choose an option: ")
@@ -178,7 +177,7 @@ func main() {
 				waitForEnter(scanner)
 				continue
 			}
-			err = todos.Complete(num - 1)
+			err = todos.SetDone(num-1, true)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 				waitForEnter(scanner)
@@ -211,6 +210,39 @@ func main() {
 				waitForEnter(scanner)
 				continue
 			}
+			err = todos.SetDone(num-1, false)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				waitForEnter(scanner)
+				continue
+			}
+			if err := todos.Save(dataFile); err != nil {
+				fmt.Printf("Error saving data: %v\n", err)
+			} else {
+				fmt.Println("Task marked as uncompleted")
+			}
+			waitForEnter(scanner)
+
+		case "5":
+			if len(*todos) == 0 {
+				fmt.Println("Your todo list is empty")
+				waitForEnter(scanner)
+				continue
+			}
+			todos.Print()
+
+			fmt.Print("Write id: ")
+			if !scanner.Scan() {
+				continue
+			}
+			id := strings.TrimSpace(scanner.Text())
+
+			num, err := strconv.Atoi(id)
+			if err != nil {
+				fmt.Println("Error: please enter a valid number")
+				waitForEnter(scanner)
+				continue
+			}
 			err = todos.Delete(num - 1)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
@@ -224,7 +256,7 @@ func main() {
 			}
 			waitForEnter(scanner)
 
-		case "5":
+		case "6":
 			fmt.Println("Goodbye!")
 			return
 		default:
