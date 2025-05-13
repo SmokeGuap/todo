@@ -64,6 +64,11 @@ func (t *TodoList) Load(filename string) error {
 	return json.Unmarshal(data, t)
 }
 
+func (t *TodoList) Change(index int, title string) error {
+	(*t)[index].Title = title
+	return nil
+}
+
 func (t *TodoList) Print() {
 	if len(*t) == 0 {
 		fmt.Println("Your todo list is empty")
@@ -117,8 +122,9 @@ func main() {
 		fmt.Println("2. Add a new task")
 		fmt.Println("3. Mark task as completed")
 		fmt.Println("4. Mark task as uncompleted")
-		fmt.Println("5. Delete a task")
-		fmt.Println("6. Exit")
+		fmt.Println("5. Change title")
+		fmt.Println("6. Delete a task")
+		fmt.Println("7. Exit")
 		fmt.Println("───────────────────────────────────────")
 
 		fmt.Print("Choose an option: ")
@@ -243,6 +249,50 @@ func main() {
 				waitForEnter(scanner)
 				continue
 			}
+			fmt.Print("Write title: ")
+			if !scanner.Scan() {
+				continue
+			}
+			title := strings.TrimSpace(scanner.Text())
+
+			if title == "" {
+				fmt.Println("Error: title cannot be empty")
+				waitForEnter(scanner)
+				continue
+			}
+
+			err = todos.Change(num-1, title)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				waitForEnter(scanner)
+				continue
+			}
+			if err := todos.Save(dataFile); err != nil {
+				fmt.Printf("Error saving data: %v\n", err)
+			} else {
+				fmt.Println("Task title changed successfully")
+			}
+			waitForEnter(scanner)
+		case "6":
+			if len(*todos) == 0 {
+				fmt.Println("Your todo list is empty")
+				waitForEnter(scanner)
+				continue
+			}
+			todos.Print()
+
+			fmt.Print("Write id: ")
+			if !scanner.Scan() {
+				continue
+			}
+			id := strings.TrimSpace(scanner.Text())
+
+			num, err := strconv.Atoi(id)
+			if err != nil {
+				fmt.Println("Error: please enter a valid number")
+				waitForEnter(scanner)
+				continue
+			}
 			err = todos.Delete(num - 1)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
@@ -256,7 +306,7 @@ func main() {
 			}
 			waitForEnter(scanner)
 
-		case "6":
+		case "7":
 			fmt.Println("Goodbye!")
 			return
 		default:
