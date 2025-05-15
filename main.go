@@ -292,7 +292,7 @@ func main() {
 			fmt.Println("Goodbye!")
 			return
 		default:
-			fmt.Println("Unknown command. Please choose a number from 1 to 5.")
+			fmt.Println("Unknown command. Please choose a number from 1 to 7.")
 			waitForEnter(scanner)
 		}
 
