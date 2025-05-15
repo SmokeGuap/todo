@@ -65,6 +65,9 @@ func (t *TodoList) Load(filename string) error {
 }
 
 func (t *TodoList) Change(index int, title string) error {
+	if index < 0 || index >= len(*t) {
+		return errors.New("invalid task index")
+	}
 	(*t)[index].Title = title
 	return nil
 }
@@ -88,6 +91,55 @@ func (t *TodoList) Print() {
 func waitForEnter(s *bufio.Scanner) {
 	fmt.Print("\nPress Enter to continue...")
 	s.Scan()
+}
+
+func readTodoId(s *bufio.Scanner) (int, error) {
+	fmt.Print("Write id: ")
+	if !s.Scan() {
+		return 0, errors.New("failed to read input")
+	}
+	id := strings.TrimSpace(s.Text())
+	num, err := strconv.Atoi(id)
+	if err != nil {
+		return 0, errors.New("please enter a valid number")
+	}
+	return num - 1, nil
+}
+
+func handleSetDone(s *bufio.Scanner,
+	todos *TodoList,
+	filename string,
+	done bool) {
+	if len(*todos) == 0 {
+		fmt.Println("Your todo list is empty")
+		waitForEnter(s)
+		return
+	}
+	todos.Print()
+
+	id, err := readTodoId(s)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		waitForEnter(s)
+		return
+	}
+
+	err = todos.SetDone(id, true)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		waitForEnter(s)
+		return
+	}
+
+	if err := todos.Save(filename); err != nil {
+		fmt.Printf("Error saving data: %v\n", err)
+	} else if done {
+		fmt.Println("Task marked as completed")
+	} else {
+		fmt.Println("Task marked as uncompleted")
+	}
+
+	waitForEnter(s)
 }
 
 func main() {
@@ -164,70 +216,10 @@ func main() {
 			waitForEnter(scanner)
 
 		case "3":
-			if len(*todos) == 0 {
-				fmt.Println("Your todo list is empty")
-				waitForEnter(scanner)
-				continue
-			}
-			todos.Print()
-
-			fmt.Print("Write id: ")
-			if !scanner.Scan() {
-				continue
-			}
-			id := strings.TrimSpace(scanner.Text())
-
-			num, err := strconv.Atoi(id)
-			if err != nil {
-				fmt.Println("Error: please enter a valid number")
-				waitForEnter(scanner)
-				continue
-			}
-			err = todos.SetDone(num-1, true)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-				waitForEnter(scanner)
-				continue
-			}
-			if err := todos.Save(dataFile); err != nil {
-				fmt.Printf("Error saving data: %v\n", err)
-			} else {
-				fmt.Println("Task marked as completed")
-			}
-			waitForEnter(scanner)
+			handleSetDone(scanner, todos, dataFile, true)
 
 		case "4":
-			if len(*todos) == 0 {
-				fmt.Println("Your todo list is empty")
-				waitForEnter(scanner)
-				continue
-			}
-			todos.Print()
-
-			fmt.Print("Write id: ")
-			if !scanner.Scan() {
-				continue
-			}
-			id := strings.TrimSpace(scanner.Text())
-
-			num, err := strconv.Atoi(id)
-			if err != nil {
-				fmt.Println("Error: please enter a valid number")
-				waitForEnter(scanner)
-				continue
-			}
-			err = todos.SetDone(num-1, false)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-				waitForEnter(scanner)
-				continue
-			}
-			if err := todos.Save(dataFile); err != nil {
-				fmt.Printf("Error saving data: %v\n", err)
-			} else {
-				fmt.Println("Task marked as uncompleted")
-			}
-			waitForEnter(scanner)
+			handleSetDone(scanner, todos, dataFile, false)
 
 		case "5":
 			if len(*todos) == 0 {
@@ -237,18 +229,13 @@ func main() {
 			}
 			todos.Print()
 
-			fmt.Print("Write id: ")
-			if !scanner.Scan() {
-				continue
-			}
-			id := strings.TrimSpace(scanner.Text())
-
-			num, err := strconv.Atoi(id)
+			id, err := readTodoId(scanner)
 			if err != nil {
-				fmt.Println("Error: please enter a valid number")
+				fmt.Printf("Error: %v\n", err)
 				waitForEnter(scanner)
 				continue
 			}
+
 			fmt.Print("Write title: ")
 			if !scanner.Scan() {
 				continue
@@ -261,7 +248,7 @@ func main() {
 				continue
 			}
 
-			err = todos.Change(num-1, title)
+			err = todos.Change(id, title)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 				waitForEnter(scanner)
@@ -281,19 +268,14 @@ func main() {
 			}
 			todos.Print()
 
-			fmt.Print("Write id: ")
-			if !scanner.Scan() {
-				continue
-			}
-			id := strings.TrimSpace(scanner.Text())
-
-			num, err := strconv.Atoi(id)
+			id, err := readTodoId(scanner)
 			if err != nil {
-				fmt.Println("Error: please enter a valid number")
+				fmt.Printf("Error: %v\n", err)
 				waitForEnter(scanner)
 				continue
 			}
-			err = todos.Delete(num - 1)
+
+			err = todos.Delete(id)
 			if err != nil {
 				fmt.Printf("Error: %v\n", err)
 				waitForEnter(scanner)
