@@ -78,14 +78,7 @@ func (t *TodoList) Print() {
 		return
 	}
 
-	fmt.Println("Task list:")
-	for i, task := range *t {
-		status := "[ ]"
-		if task.Done {
-			status = "[\u2713]"
-		}
-		fmt.Printf("%d. %s %s (created: %v)\n", i+1, status, task.Title, task.CreatedAt.Format("2006.01.02 15:04"))
-	}
+	tasksPrint(t)
 }
 
 func (t *TodoList) Search(str string) (TodoList, error) {
@@ -100,6 +93,21 @@ func (t *TodoList) Search(str string) (TodoList, error) {
 	}
 
 	return matchedTodo, nil
+}
+
+func (t *TodoList) Clear() {
+	*t = nil
+}
+
+func tasksPrint(t *TodoList) {
+	fmt.Println("Task list:")
+	for i, task := range *t {
+		status := "[ ]"
+		if task.Done {
+			status = "[\u2713]"
+		}
+		fmt.Printf("%d. %s %s (created: %v)\n", i+1, status, task.Title, task.CreatedAt.Format("2006.01.02 15:04"))
+	}
 }
 
 func waitForEnter(s *bufio.Scanner) {
@@ -191,7 +199,8 @@ func main() {
 		fmt.Println("5. Change title")
 		fmt.Println("6. Delete a task")
 		fmt.Println("7. Search")
-		fmt.Println("8. Exit")
+		fmt.Println("8. Clear all tasks")
+		fmt.Println("9. Exit")
 		fmt.Println("───────────────────────────────────────")
 
 		fmt.Print("Choose an option: ")
@@ -323,21 +332,32 @@ func main() {
 				continue
 			}
 
-			fmt.Println("Found task list:")
-			for i, task := range matchedTodos {
-				status := "[ ]"
-				if task.Done {
-					status = "[\u2713]"
-				}
-				fmt.Printf("%d. %s %s (created: %v)\n", i+1, status, task.Title, task.CreatedAt.Format("2006.01.02 15:04"))
-			}
+			tasksPrint(&matchedTodos)
 			waitForEnter(scanner)
 
 		case "8":
+			fmt.Print("Are you sure to clear (y/n): ")
+			if !scanner.Scan() {
+				continue
+			}
+
+			yes := strings.ToLower(strings.TrimSpace(scanner.Text()))
+			if yes == "y" {
+				todos.Clear()
+			} else {
+				continue
+			}
+			if err := todos.Save(dataFile); err != nil {
+				fmt.Printf("Error saving data: %v\n", err)
+			} else {
+				fmt.Println("Tasks deleted successfully")
+			}
+			waitForEnter(scanner)
+		case "9":
 			fmt.Println("Goodbye!")
 			return
 		default:
-			fmt.Println("Unknown command. Please choose a number from 1 to 8.")
+			fmt.Println("Unknown command. Please choose a number from 1 to 9.")
 			waitForEnter(scanner)
 		}
 
