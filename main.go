@@ -88,6 +88,20 @@ func (t *TodoList) Print() {
 	}
 }
 
+func (t *TodoList) Search(str string) (TodoList, error) {
+	var matchedTodo TodoList
+	for _, todo := range *t {
+		if strings.Contains(strings.ToLower(todo.Title), strings.ToLower(str)) {
+			matchedTodo = append(matchedTodo, todo)
+		}
+	}
+	if len(matchedTodo) == 0 {
+		return nil, fmt.Errorf("Tasks not found with title: %s", str)
+	}
+
+	return matchedTodo, nil
+}
+
 func waitForEnter(s *bufio.Scanner) {
 	fmt.Print("\nPress Enter to continue...")
 	s.Scan()
@@ -124,7 +138,7 @@ func handleSetDone(s *bufio.Scanner,
 		return
 	}
 
-	err = todos.SetDone(id, true)
+	err = todos.SetDone(id, done)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		waitForEnter(s)
@@ -176,7 +190,8 @@ func main() {
 		fmt.Println("4. Mark task as uncompleted")
 		fmt.Println("5. Change title")
 		fmt.Println("6. Delete a task")
-		fmt.Println("7. Exit")
+		fmt.Println("7. Search")
+		fmt.Println("8. Exit")
 		fmt.Println("───────────────────────────────────────")
 
 		fmt.Print("Choose an option: ")
@@ -289,10 +304,40 @@ func main() {
 			waitForEnter(scanner)
 
 		case "7":
+			fmt.Print("Write title: ")
+			if !scanner.Scan() {
+				continue
+			}
+			title := strings.TrimSpace(scanner.Text())
+
+			if title == "" {
+				fmt.Println("Error: title cannot be empty")
+				waitForEnter(scanner)
+				continue
+			}
+
+			matchedTodos, err := todos.Search(title)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				waitForEnter(scanner)
+				continue
+			}
+
+			fmt.Println("Found task list:")
+			for i, task := range matchedTodos {
+				status := "[ ]"
+				if task.Done {
+					status = "[\u2713]"
+				}
+				fmt.Printf("%d. %s %s (created: %v)\n", i+1, status, task.Title, task.CreatedAt.Format("2006.01.02 15:04"))
+			}
+			waitForEnter(scanner)
+
+		case "8":
 			fmt.Println("Goodbye!")
 			return
 		default:
-			fmt.Println("Unknown command. Please choose a number from 1 to 7.")
+			fmt.Println("Unknown command. Please choose a number from 1 to 8.")
 			waitForEnter(scanner)
 		}
 
