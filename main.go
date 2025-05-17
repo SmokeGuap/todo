@@ -15,6 +15,7 @@ import (
 )
 
 type Task struct {
+	ID        int       `json:"id"`
 	Title     string    `json:"title"`
 	Done      bool      `json:"done"`
 	CreatedAt time.Time `json:"created_at"`
@@ -24,6 +25,7 @@ type TodoList []Task
 
 func (t *TodoList) Add(title string) {
 	task := Task{
+		ID:        t.NextID(),
 		Title:     title,
 		Done:      false,
 		CreatedAt: time.Now(),
@@ -31,19 +33,33 @@ func (t *TodoList) Add(title string) {
 	*t = append(*t, task)
 }
 
-func (t *TodoList) SetDone(index int, b bool) error {
-	if index < 0 || index >= len(*t) {
-		return errors.New("invalid task index")
+func (t *TodoList) NextID() int {
+	maxID := 0
+
+	for _, task := range *t {
+		if task.ID > maxID {
+			maxID = task.ID
+		}
 	}
-	(*t)[index].Done = b
+
+	return maxID + 1
+}
+
+func (t *TodoList) SetDone(index int, b bool) error {
+	id := findIndexByID(*t, index)
+	if id == -1 {
+		return errors.New("invalid task ID")
+	}
+	(*t)[id].Done = b
 	return nil
 }
 
 func (t *TodoList) Delete(index int) error {
-	if index < 0 || index >= len(*t) {
-		return errors.New("invalid task index")
+	id := findIndexByID(*t, index)
+	if id == -1 {
+		return errors.New("invalid task ID")
 	}
-	*t = append((*t)[:index], (*t)[index+1:]...)
+	*t = append((*t)[:id], (*t)[id+1:]...)
 	return nil
 }
 
@@ -67,10 +83,11 @@ func (t *TodoList) Load(filename string) error {
 }
 
 func (t *TodoList) Change(index int, title string) error {
-	if index < 0 || index >= len(*t) {
-		return errors.New("invalid task index")
+	id := findIndexByID(*t, index)
+	if id == -1 {
+		return errors.New("invalid task ID")
 	}
-	(*t)[index].Title = title
+	(*t)[id].Title = title
 	return nil
 }
 
@@ -80,7 +97,7 @@ func (t *TodoList) Print() {
 		return
 	}
 
-	tasksPrint(t)
+	todoPrint(t)
 }
 
 func (t *TodoList) Search(str string) (TodoList, error) {
@@ -124,14 +141,30 @@ func (t *TodoList) Sort(key string) error {
 	return nil
 }
 
-func tasksPrint(t *TodoList) {
+func findIndexByID(t TodoList, id int) int {
+	for i, task := range t {
+		if task.ID == id {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func todoPrint(t *TodoList) {
 	fmt.Println("Task list:")
-	for i, task := range *t {
+	for _, task := range *t {
 		status := "[ ]"
 		if task.Done {
 			status = "[\u2713]"
 		}
-		fmt.Printf("%d. %s %s (created: %v)\n", i+1, status, task.Title, task.CreatedAt.Format("2006.01.02 15:04"))
+		fmt.Printf(
+			"%d. %s %s (created: %s)\n",
+			task.ID,
+			status,
+			task.Title,
+			task.CreatedAt.Format("2006.01.02 15:04"),
+		)
 	}
 	fmt.Printf("Task count: %d\n", len(*t))
 }
@@ -142,16 +175,22 @@ func waitForEnter(s *bufio.Scanner) {
 }
 
 func readTodoId(s *bufio.Scanner) (int, error) {
-	fmt.Print("Write id: ")
+	fmt.Print("Write ID: ")
+
 	if !s.Scan() {
 		return 0, errors.New("failed to read input")
 	}
-	id := strings.TrimSpace(s.Text())
-	num, err := strconv.Atoi(id)
+
+	id, err := strconv.Atoi(strings.TrimSpace(s.Text()))
 	if err != nil {
 		return 0, errors.New("please enter a valid number")
 	}
-	return num - 1, nil
+
+	if id <= 0 {
+		return 0, errors.New("ID must be positive")
+	}
+
+	return id, nil
 }
 
 func handleSetDone(s *bufio.Scanner,
@@ -359,7 +398,7 @@ func main() {
 				continue
 			}
 
-			tasksPrint(&matchedTodos)
+			todoPrint(&matchedTodos)
 			waitForEnter(scanner)
 
 		case "8":
