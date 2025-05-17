@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -99,6 +101,29 @@ func (t *TodoList) Clear() {
 	*t = nil
 }
 
+func (t *TodoList) Sort(key string) error {
+	switch key {
+	case "1":
+		slices.SortFunc(*t, func(a, b Task) int {
+			return cmp.Compare(a.Title, b.Title)
+		})
+	case "2":
+		slices.SortFunc(*t, func(a, b Task) int {
+			if a.CreatedAt.Before(b.CreatedAt) {
+				return -1
+			}
+			if a.CreatedAt.After(b.CreatedAt) {
+				return 1
+			}
+			return 0
+		})
+	default:
+		return errors.New("Error: wrong sort field")
+
+	}
+	return nil
+}
+
 func tasksPrint(t *TodoList) {
 	fmt.Println("Task list:")
 	for i, task := range *t {
@@ -108,6 +133,7 @@ func tasksPrint(t *TodoList) {
 		}
 		fmt.Printf("%d. %s %s (created: %v)\n", i+1, status, task.Title, task.CreatedAt.Format("2006.01.02 15:04"))
 	}
+	fmt.Printf("Task count: %d\n", len(*t))
 }
 
 func waitForEnter(s *bufio.Scanner) {
@@ -200,7 +226,8 @@ func main() {
 		fmt.Println("6. Delete a task")
 		fmt.Println("7. Search")
 		fmt.Println("8. Clear all tasks")
-		fmt.Println("9. Exit")
+		fmt.Println("9. Sort")
+		fmt.Println("10. Exit")
 		fmt.Println("───────────────────────────────────────")
 
 		fmt.Print("Choose an option: ")
@@ -354,10 +381,33 @@ func main() {
 			}
 			waitForEnter(scanner)
 		case "9":
+
+			fmt.Println("Sort by:")
+			fmt.Println("1. Title")
+			fmt.Println("2. Created date")
+
+			fmt.Print("Choose sort: ")
+			if !scanner.Scan() {
+				continue
+			}
+			key := strings.TrimSpace(scanner.Text())
+			err := todos.Sort(key)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				waitForEnter(scanner)
+				continue
+			}
+			if err := todos.Save(dataFile); err != nil {
+				fmt.Printf("Error saving data: %v\n", err)
+			} else {
+				fmt.Println("Tasks sorted successfully")
+			}
+			waitForEnter(scanner)
+		case "10":
 			fmt.Println("Goodbye!")
 			return
 		default:
-			fmt.Println("Unknown command. Please choose a number from 1 to 9.")
+			fmt.Println("Unknown command. Please choose a number from 1 to 10.")
 			waitForEnter(scanner)
 		}
 
