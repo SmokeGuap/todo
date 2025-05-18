@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,12 +46,12 @@ func (t *TodoList) NextID() int {
 	return maxID + 1
 }
 
-func (t *TodoList) SetDone(index int, b bool) error {
-	id := findIndexByID(*t, index)
-	if id == -1 {
+func (t *TodoList) SetDone(id int, done bool) error {
+	index := findIndexByID(*t, id)
+	if index == -1 {
 		return errors.New("invalid task ID")
 	}
-	(*t)[id].Done = b
+	(*t)[index].Done = done
 	return nil
 }
 
@@ -221,15 +222,42 @@ func handleSetDone(s *bufio.Scanner,
 	if err := todos.Save(filename); err != nil {
 		fmt.Printf("Error saving data: %v\n", err)
 	} else if done {
-		fmt.Println("Task marked as completed")
+		fmt.Printf("Task %d marked as completed\n", id)
 	} else {
-		fmt.Println("Task marked as uncompleted")
+		fmt.Printf("Task %d marked as uncompleted\n", id)
 	}
 
 	waitForEnter(s)
 }
 
+func handleFlagSetDone(todos *TodoList, filename string, id int, done bool) error {
+	if err := todos.SetDone(id, done); err != nil {
+		return err
+	}
+
+	if err := todos.Save(filename); err != nil {
+		return err
+	}
+
+	if done {
+		fmt.Printf("Task %d marked as completed\n", id)
+	} else {
+		fmt.Printf("Task %d marked as uncompleted\n", id)
+	}
+
+	return nil
+}
+
 func main() {
+	list := flag.Bool("list", false, "List all tasks")
+	add := flag.String("add", "", "Add new task")
+	done := flag.Int("done", 0, "Mark task as completed")
+	undone := flag.Int("undone", 0, "Mark task as uncompleted")
+	delete := flag.Int("delete", 0, "Delete a task")
+	interactive := flag.Bool("interactive", false, "Run interactive mode")
+
+	flag.Parse()
+
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Print("Enter filename (default: todos.json): ")
@@ -253,202 +281,252 @@ func main() {
 		os.Exit(1)
 	}
 
-	for {
-		fmt.Print("\033[H\033[2J")
-		fmt.Println("───────────────────────────────────────")
-		fmt.Println("Menu:")
-		fmt.Println("1. List all tasks")
-		fmt.Println("2. Add a new task")
-		fmt.Println("3. Mark task as completed")
-		fmt.Println("4. Mark task as uncompleted")
-		fmt.Println("5. Change title")
-		fmt.Println("6. Delete a task")
-		fmt.Println("7. Search")
-		fmt.Println("8. Clear all tasks")
-		fmt.Println("9. Sort")
-		fmt.Println("10. Exit")
-		fmt.Println("───────────────────────────────────────")
+	if *add != "" {
+		todos.Add(*add)
+		if err := todos.Save(dataFile); err != nil {
+			fmt.Printf("Error saving data: %v\n", err)
+		} else {
+			fmt.Println("Task added successfully")
+		}
+	}
 
-		fmt.Print("Choose an option: ")
-		if !scanner.Scan() {
-			if err := scanner.Err(); err != nil {
-				fmt.Printf("Critical input error: %v\n", err)
-				os.Exit(1)
-			}
+	if *done != 0 && *undone != 0 {
+		fmt.Println("Error: use either -done or -undone")
+		os.Exit(1)
+	}
+
+	if *done != 0 {
+		if err := handleFlagSetDone(todos, dataFile, *done, true); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if *undone != 0 {
+		if err := handleFlagSetDone(todos, dataFile, *undone, false); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if *delete != 0 {
+		err := todos.Delete(*delete)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		if err := todos.Save(dataFile); err != nil {
+			fmt.Printf("Error saving data: %v\n", err)
+			os.Exit(1)
+		} else {
+			fmt.Println("Task deleted successfully")
 			return
 		}
-		choice := strings.TrimSpace(scanner.Text())
+	}
 
-		switch choice {
-		case "1":
-			todos.Print()
-			waitForEnter(scanner)
+	if *list {
+		todos.Print()
+		os.Exit(1)
+	}
 
-		case "2":
-			fmt.Print("Write title: ")
+	if flag.NFlag() == 0 || *interactive {
+		for {
+			fmt.Print("\033[H\033[2J")
+			fmt.Println("───────────────────────────────────────")
+			fmt.Println("Menu:")
+			fmt.Println("1. List all tasks")
+			fmt.Println("2. Add a new task")
+			fmt.Println("3. Mark task as completed")
+			fmt.Println("4. Mark task as uncompleted")
+			fmt.Println("5. Change title")
+			fmt.Println("6. Delete a task")
+			fmt.Println("7. Search")
+			fmt.Println("8. Clear all tasks")
+			fmt.Println("9. Sort")
+			fmt.Println("10. Exit")
+			fmt.Println("───────────────────────────────────────")
+
+			fmt.Print("Choose an option: ")
 			if !scanner.Scan() {
+				if err := scanner.Err(); err != nil {
+					fmt.Printf("Critical input error: %v\n", err)
+					os.Exit(1)
+				}
 				return
 			}
-			title := strings.TrimSpace(scanner.Text())
+			choice := strings.TrimSpace(scanner.Text())
 
-			if title == "" {
-				fmt.Println("Error: task title cannot be empty")
+			switch choice {
+			case "1":
+				todos.Print()
 				waitForEnter(scanner)
-				continue
-			}
 
-			todos.Add(title)
-			if err := todos.Save(dataFile); err != nil {
-				fmt.Printf("Error saving data: %v\n", err)
-			} else {
-				fmt.Println("Task added successfully")
-			}
-			waitForEnter(scanner)
+			case "2":
+				fmt.Print("Write title: ")
+				if !scanner.Scan() {
+					return
+				}
+				title := strings.TrimSpace(scanner.Text())
 
-		case "3":
-			handleSetDone(scanner, todos, dataFile, true)
+				if title == "" {
+					fmt.Println("Error: task title cannot be empty")
+					waitForEnter(scanner)
+					continue
+				}
 
-		case "4":
-			handleSetDone(scanner, todos, dataFile, false)
-
-		case "5":
-			if len(*todos) == 0 {
-				fmt.Println("Your todo list is empty")
+				todos.Add(title)
+				if err := todos.Save(dataFile); err != nil {
+					fmt.Printf("Error saving data: %v\n", err)
+				} else {
+					fmt.Println("Task added successfully")
+				}
 				waitForEnter(scanner)
-				continue
-			}
-			todos.Print()
 
-			id, err := readTodoId(scanner)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+			case "3":
+				handleSetDone(scanner, todos, dataFile, true)
+
+			case "4":
+				handleSetDone(scanner, todos, dataFile, false)
+
+			case "5":
+				if len(*todos) == 0 {
+					fmt.Println("Your todo list is empty")
+					waitForEnter(scanner)
+					continue
+				}
+				todos.Print()
+
+				id, err := readTodoId(scanner)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					waitForEnter(scanner)
+					continue
+				}
+
+				fmt.Print("Write title: ")
+				if !scanner.Scan() {
+					continue
+				}
+				title := strings.TrimSpace(scanner.Text())
+
+				if title == "" {
+					fmt.Println("Error: title cannot be empty")
+					waitForEnter(scanner)
+					continue
+				}
+
+				err = todos.Change(id, title)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					waitForEnter(scanner)
+					continue
+				}
+				if err := todos.Save(dataFile); err != nil {
+					fmt.Printf("Error saving data: %v\n", err)
+				} else {
+					fmt.Println("Task title changed successfully")
+				}
 				waitForEnter(scanner)
-				continue
-			}
+			case "6":
+				if len(*todos) == 0 {
+					fmt.Println("Your todo list is empty")
+					waitForEnter(scanner)
+					continue
+				}
+				todos.Print()
 
-			fmt.Print("Write title: ")
-			if !scanner.Scan() {
-				continue
-			}
-			title := strings.TrimSpace(scanner.Text())
+				id, err := readTodoId(scanner)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					waitForEnter(scanner)
+					continue
+				}
 
-			if title == "" {
-				fmt.Println("Error: title cannot be empty")
+				err = todos.Delete(id)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					waitForEnter(scanner)
+					continue
+				}
+				if err := todos.Save(dataFile); err != nil {
+					fmt.Printf("Error saving data: %v\n", err)
+				} else {
+					fmt.Println("Task deleted successfully")
+				}
 				waitForEnter(scanner)
-				continue
-			}
 
-			err = todos.Change(id, title)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+			case "7":
+				fmt.Print("Write title: ")
+				if !scanner.Scan() {
+					continue
+				}
+				title := strings.TrimSpace(scanner.Text())
+
+				if title == "" {
+					fmt.Println("Error: title cannot be empty")
+					waitForEnter(scanner)
+					continue
+				}
+
+				matchedTodos, err := todos.Search(title)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					waitForEnter(scanner)
+					continue
+				}
+
+				todoPrint(&matchedTodos)
 				waitForEnter(scanner)
-				continue
-			}
-			if err := todos.Save(dataFile); err != nil {
-				fmt.Printf("Error saving data: %v\n", err)
-			} else {
-				fmt.Println("Task title changed successfully")
-			}
-			waitForEnter(scanner)
-		case "6":
-			if len(*todos) == 0 {
-				fmt.Println("Your todo list is empty")
+
+			case "8":
+				fmt.Print("Are you sure to clear (y/n): ")
+				if !scanner.Scan() {
+					continue
+				}
+
+				yes := strings.ToLower(strings.TrimSpace(scanner.Text()))
+				if yes == "y" {
+					todos.Clear()
+				} else {
+					continue
+				}
+				if err := todos.Save(dataFile); err != nil {
+					fmt.Printf("Error saving data: %v\n", err)
+				} else {
+					fmt.Println("Tasks deleted successfully")
+				}
 				waitForEnter(scanner)
-				continue
-			}
-			todos.Print()
+			case "9":
 
-			id, err := readTodoId(scanner)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+				fmt.Println("Sort by:")
+				fmt.Println("1. Title")
+				fmt.Println("2. Created date")
+
+				fmt.Print("Choose sort: ")
+				if !scanner.Scan() {
+					continue
+				}
+				key := strings.TrimSpace(scanner.Text())
+				err := todos.Sort(key)
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+					waitForEnter(scanner)
+					continue
+				}
+				if err := todos.Save(dataFile); err != nil {
+					fmt.Printf("Error saving data: %v\n", err)
+				} else {
+					fmt.Println("Tasks sorted successfully")
+				}
 				waitForEnter(scanner)
-				continue
-			}
-
-			err = todos.Delete(id)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+			case "10":
+				fmt.Println("Goodbye!")
+				return
+			default:
+				fmt.Println("Unknown command. Please choose a number from 1 to 10.")
 				waitForEnter(scanner)
-				continue
-			}
-			if err := todos.Save(dataFile); err != nil {
-				fmt.Printf("Error saving data: %v\n", err)
-			} else {
-				fmt.Println("Task deleted successfully")
-			}
-			waitForEnter(scanner)
-
-		case "7":
-			fmt.Print("Write title: ")
-			if !scanner.Scan() {
-				continue
-			}
-			title := strings.TrimSpace(scanner.Text())
-
-			if title == "" {
-				fmt.Println("Error: title cannot be empty")
-				waitForEnter(scanner)
-				continue
 			}
 
-			matchedTodos, err := todos.Search(title)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-				waitForEnter(scanner)
-				continue
-			}
-
-			todoPrint(&matchedTodos)
-			waitForEnter(scanner)
-
-		case "8":
-			fmt.Print("Are you sure to clear (y/n): ")
-			if !scanner.Scan() {
-				continue
-			}
-
-			yes := strings.ToLower(strings.TrimSpace(scanner.Text()))
-			if yes == "y" {
-				todos.Clear()
-			} else {
-				continue
-			}
-			if err := todos.Save(dataFile); err != nil {
-				fmt.Printf("Error saving data: %v\n", err)
-			} else {
-				fmt.Println("Tasks deleted successfully")
-			}
-			waitForEnter(scanner)
-		case "9":
-
-			fmt.Println("Sort by:")
-			fmt.Println("1. Title")
-			fmt.Println("2. Created date")
-
-			fmt.Print("Choose sort: ")
-			if !scanner.Scan() {
-				continue
-			}
-			key := strings.TrimSpace(scanner.Text())
-			err := todos.Sort(key)
-			if err != nil {
-				fmt.Printf("Error: %v\n", err)
-				waitForEnter(scanner)
-				continue
-			}
-			if err := todos.Save(dataFile); err != nil {
-				fmt.Printf("Error saving data: %v\n", err)
-			} else {
-				fmt.Println("Tasks sorted successfully")
-			}
-			waitForEnter(scanner)
-		case "10":
-			fmt.Println("Goodbye!")
-			return
-		default:
-			fmt.Println("Unknown command. Please choose a number from 1 to 10.")
-			waitForEnter(scanner)
 		}
-
 	}
 }
