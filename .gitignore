@@ -1,0 +1,38 @@
+# Binaries and build output
+todo
+todo.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test files and profiles
+*.test
+*.out
+*.prof
+coverage.*
+cover.out
+
+# Application data (user tasks)
+*.json
+*.txt
+
+# Dependency and vendoring directories
+vendor/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local environment variables
+.env
+.env.local
