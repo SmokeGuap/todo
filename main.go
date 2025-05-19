@@ -442,12 +442,23 @@ func main() {
 					continue
 				}
 
-				err = todos.Delete(id)
-				if err != nil {
-					fmt.Printf("Error: %v\n", err)
-					waitForEnter(scanner)
+				fmt.Print("Are you sure to clear (y/n): ")
+				if !scanner.Scan() {
 					continue
 				}
+
+				yes := strings.ToLower(strings.TrimSpace(scanner.Text()))
+				if yes == "y" {
+					err = todos.Delete(id)
+					if err != nil {
+						fmt.Printf("Error: %v\n", err)
+						waitForEnter(scanner)
+						continue
+					}
+				} else {
+					continue
+				}
+
 				if err := todos.Save(dataFile); err != nil {
 					fmt.Printf("Error saving data: %v\n", err)
 				} else {
